@@ -45,7 +45,7 @@ def generate_launch_description():
 
     server_arg = DeclareLaunchArgument(
         'server',
-        default_value='192.168.0.2', # OptiTrack IP
+        default_value='192.168.0.226', # OptiTrack IP
         description='VRPN server address'
     )
 
