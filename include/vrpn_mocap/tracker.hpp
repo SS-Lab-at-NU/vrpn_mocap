@@ -32,11 +32,11 @@
 #include "vrpn_Tracker.h"
 
 #include "builtin_interfaces/msg/time.hpp"
-#include "geometry_msgs/msg/accel_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/qos.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "tf2_ros/transform_broadcaster.h"
 
 namespace vrpn_mocap
 {
@@ -107,8 +107,7 @@ public:
   vrpn_Tracker_Remote vrpn_tracker_;
 
   std::vector<PublisherT<geometry_msgs::msg::PoseStamped>::SharedPtr> pose_pubs_;
-  std::vector<PublisherT<geometry_msgs::msg::TwistStamped>::SharedPtr> twist_pubs_;
-  std::vector<PublisherT<geometry_msgs::msg::AccelStamped>::SharedPtr> accel_pubs_;
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 

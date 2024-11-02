@@ -21,14 +21,13 @@ find_package(VRPN REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(eigen3_cmake_module REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 add_library(vrpn_mocap src/client.cpp src/tracker.cpp)
 target_include_directories(vrpn_mocap PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(vrpn_mocap rclcpp VRPN std_msgs geometry_msgs Eigen3)
+ament_target_dependencies(vrpn_mocap rclcpp VRPN std_msgs geometry_msgs tf2_ros)
 
 install(TARGETS vrpn_mocap
         DESTINATION lib/${PROJECT_NAME})

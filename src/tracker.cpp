@@ -22,7 +22,6 @@
 
 #include "vrpn_mocap/tracker.hpp"
 
-#include <Eigen/Geometry>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -32,9 +31,7 @@
 namespace vrpn_mocap
 {
 
-using geometry_msgs::msg::AccelStamped;
 using geometry_msgs::msg::PoseStamped;
-using geometry_msgs::msg::TwistStamped;
 using namespace std::chrono_literals;
 
 std::string Tracker::ValidNodeName(const std::string & tracker_name)
@@ -56,6 +53,7 @@ Tracker::Tracker(const std::string & tracker_name)
   use_vrpn_timestamps_(declare_parameter("use_vrpn_timestamps", false)),
   vrpn_tracker_(name_.c_str())
 {
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
   Init();
 
   // start main loop when instantiated as a standalone node
@@ -74,14 +72,13 @@ Tracker::Tracker(
   use_vrpn_timestamps_(base_node.get_parameter("use_vrpn_timestamps").as_bool()),
   vrpn_tracker_(name_.c_str(), connection.get())
 {
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
   Init();
 }
 
 Tracker::~Tracker()
 {
   vrpn_tracker_.unregister_change_handler(this, &Tracker::HandlePose);
-  vrpn_tracker_.unregister_change_handler(this, &Tracker::HandleTwist);
-  vrpn_tracker_.unregister_change_handler(this, &Tracker::HandleAccel);
 
   RCLCPP_INFO_STREAM(this->get_logger(), "Destroyed new tracker " << name_);
 }
@@ -89,8 +86,6 @@ Tracker::~Tracker()
 void Tracker::Init()
 {
   vrpn_tracker_.register_change_handler(this, &Tracker::HandlePose);
-  vrpn_tracker_.register_change_handler(this, &Tracker::HandleTwist);
-  vrpn_tracker_.register_change_handler(this, &Tracker::HandleAccel);
   vrpn_tracker_.shutup = true;
 
   RCLCPP_INFO_STREAM(this->get_logger(), "Created new tracker " << name_);
@@ -114,14 +109,14 @@ void VRPN_CALLBACK Tracker::HandlePose(void * data, const vrpn_TRACKERCB tracker
 {
   Tracker * tracker = static_cast<Tracker *>(data);
 
-  // lazy initialization of publisher
+  auto current_timestamp = tracker->GetTimestamp(tracker_pose.msg_time);
+
   auto pub = tracker->GetOrCreatePublisher<PoseStamped>(
     static_cast<size_t>(tracker_pose.sensor), "pose", &tracker->pose_pubs_);
 
-  // populate message
   PoseStamped msg;
   msg.header.frame_id = tracker->frame_id_;
-  msg.header.stamp = tracker->GetTimestamp(tracker_pose.msg_time);
+  msg.header.stamp = current_timestamp;
 
   msg.pose.position.x = tracker_pose.pos[0];
   msg.pose.position.y = tracker_pose.pos[1];
@@ -133,64 +128,23 @@ void VRPN_CALLBACK Tracker::HandlePose(void * data, const vrpn_TRACKERCB tracker
   msg.pose.orientation.w = tracker_pose.quat[3];
 
   pub->publish(msg);
-}
 
-void VRPN_CALLBACK Tracker::HandleTwist(void * data, const vrpn_TRACKERVELCB tracker_twist)
-{
-  Tracker * tracker = static_cast<Tracker *>(data);
+  // publish tf
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = current_timestamp;
+  transform.header.frame_id = tracker->frame_id_;
+  transform.child_frame_id = tracker->name_;
 
-  // lazy initialization of publisher
-  auto pub = tracker->GetOrCreatePublisher<TwistStamped>(
-    static_cast<size_t>(tracker_twist.sensor), "twist", &tracker->twist_pubs_);
+  transform.transform.translation.x = tracker_pose.pos[0];
+  transform.transform.translation.y = tracker_pose.pos[1];
+  transform.transform.translation.z = tracker_pose.pos[2];
 
-  // populate message
-  TwistStamped msg;
-  msg.header.frame_id = tracker->frame_id_;
-  msg.header.stamp = tracker->GetTimestamp(tracker_twist.msg_time);
+  transform.transform.rotation.x = tracker_pose.quat[0];
+  transform.transform.rotation.y = tracker_pose.quat[1];
+  transform.transform.rotation.z = tracker_pose.quat[2];
+  transform.transform.rotation.w = tracker_pose.quat[3];
 
-  msg.twist.linear.x = tracker_twist.vel[0];
-  msg.twist.linear.y = tracker_twist.vel[1];
-  msg.twist.linear.z = tracker_twist.vel[2];
-
-  const Eigen::Quaterniond quat(
-    tracker_twist.vel_quat[3], tracker_twist.vel_quat[0], tracker_twist.vel_quat[1],
-    tracker_twist.vel_quat[2]);
-  const Eigen::AngleAxisd axis_ang(quat);
-  const Eigen::Vector3d rot_vel = axis_ang.axis() * axis_ang.angle() / tracker_twist.vel_quat_dt;
-  msg.twist.angular.x = rot_vel.x();
-  msg.twist.angular.y = rot_vel.y();
-  msg.twist.angular.z = rot_vel.z();
-
-  pub->publish(msg);
-}
-
-void VRPN_CALLBACK Tracker::HandleAccel(void * data, const vrpn_TRACKERACCCB tracker_accel)
-{
-  Tracker * tracker = static_cast<Tracker *>(data);
-
-  // lazy initialization of publisher
-  auto pub = tracker->GetOrCreatePublisher<AccelStamped>(
-    static_cast<size_t>(tracker_accel.sensor), "accel", &tracker->accel_pubs_);
-
-  // populate message
-  AccelStamped msg;
-  msg.header.frame_id = tracker->frame_id_;
-  msg.header.stamp = tracker->GetTimestamp(tracker_accel.msg_time);
-
-  msg.accel.linear.x = tracker_accel.acc[0];
-  msg.accel.linear.y = tracker_accel.acc[1];
-  msg.accel.linear.z = tracker_accel.acc[2];
-
-  const Eigen::Quaterniond quat(
-    tracker_accel.acc_quat[3], tracker_accel.acc_quat[0], tracker_accel.acc_quat[1],
-    tracker_accel.acc_quat[2]);
-  const Eigen::AngleAxisd axis_ang(quat);
-  const Eigen::Vector3d rot_acc = axis_ang.axis() * axis_ang.angle() / tracker_accel.acc_quat_dt;
-  msg.accel.angular.x = rot_acc.x();
-  msg.accel.angular.y = rot_acc.y();
-  msg.accel.angular.z = rot_acc.z();
-
-  pub->publish(msg);
+  tracker->tf_broadcaster_->sendTransform(transform);
 }
 
 }  // namespace vrpn_mocap
