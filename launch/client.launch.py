@@ -7,6 +7,13 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
+    share_dir = get_package_share_directory('vrpn_mocap')
+    config_file = LaunchConfiguration('config_file')
+    config_file_arg = DeclareLaunchArgument(
+        'config_file',
+        default_value=os.path.join(share_dir, 'config', 'client.yaml'),
+        description='Path to config file')
+
     server = LaunchConfiguration('server')
     server_arg = DeclareLaunchArgument(
         'server',
@@ -20,9 +27,6 @@ def generate_launch_description():
         default_value='3883',
         description='VRPN server port'
     )
-
-    share_dir = get_package_share_directory('vrpn_mocap')
-    config_file = os.path.join(share_dir, 'config', 'client.yaml')
 
     # server/port launch arguments take priority over config file
     vrpn_node = Node(
@@ -40,6 +44,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        config_file_arg,
         server_arg,
         port_arg,
         vrpn_node
