@@ -1,18 +1,18 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, LogInfo, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def launch_setup(context, *args, **kwargs):
 
-    config_file = LaunchConfiguration('config_file').perform(context)
+    vrpn_config = LaunchConfiguration('vrpn_config').perform(context)
     server = LaunchConfiguration('server').perform(context)
     port = LaunchConfiguration('port').perform(context)
 
     debug_config = LogInfo(msg=[
-        f'Using vrpn config file: {config_file} with args: {server=} {port=}'
+        f'Using vrpn config file: {vrpn_config} with args: {server=} {port=}'
     ])
 
     # server/port launch arguments take priority over config file
@@ -22,7 +22,7 @@ def launch_setup(context, *args, **kwargs):
         executable='client_node',
         name='vrpn_mocap_client_node',
         parameters=[
-            config_file,
+            vrpn_config,
             {
                 'server': server,
                 'port': port
@@ -38,8 +38,8 @@ def launch_setup(context, *args, **kwargs):
 def generate_launch_description():
 
     share_dir = get_package_share_directory('vrpn_mocap')
-    config_file_arg = DeclareLaunchArgument(
-        'config_file',
+    vrpn_config_arg = DeclareLaunchArgument(
+        'vrpn_config',
         default_value=os.path.join(share_dir, 'config', 'client.yaml'),
         description='Path to config file')
 
@@ -58,7 +58,7 @@ def generate_launch_description():
     opaque_launch = OpaqueFunction(function=launch_setup)
 
     return LaunchDescription([
-        config_file_arg,
+        vrpn_config_arg,
         server_arg,
         port_arg,
         opaque_launch
