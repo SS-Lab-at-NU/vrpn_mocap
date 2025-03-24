@@ -1,4 +1,4 @@
-# vrpn\_mocap
+# vrpn_mocap
 
 ![rolling](https://github.com/alvinsunyixiao/vrpn_mocap/actions/workflows/rolling.yml/badge.svg)
 ![jazzy](https://github.com/alvinsunyixiao/vrpn_mocap/actions/workflows/jazzy.yml/badge.svg)
@@ -11,44 +11,47 @@ with motion capture devices such as VICON and OptiTrack. A detailed list of
 supported hardware can be found on
 [vrpn wiki](https://github.com/vrpn/vrpn/wiki/Available-hardware-devices).
 
-## Installation
+### Dependencies
 
-#### Install From Binary Release
-`sudo apt install ros-<rosdistro>-vrpn-mocap`
+`sudo apt-get install netbase`
 
-#### Build From Source
+If using inside Docker container, run with `--network=host`
+
+### Build From Source
+
 1. Clone this repo into your ROS2 workspace
 2. Run `rosdep install --from-paths src -y --ignore-src` to install dependencies
 3. Run `colcon build`
-4. Your usual ROS2 routines: `source install/setup.zsh`, etc.
 
 ## Usage
 
-#### Launch Default Configuration from Command Line
+### Launch Default Configuration from Command Line
 Run the following command,
 ```bash
-ros2 launch vrpn_mocap client.launch.yaml server:=<server ip> port:=<port>
+ros2 launch vrpn_mocap client.launch.py server:=<server_ip> port:=<port>
 ```
-replacing `<server ip>` and `<port>` with your VRPN server ip and port, e.g.
+replacing `<server_ip>` and `<port>` with your VRPN server ip and port, e.g.
 ```bash
-ros2 launch vrpn_mocap client.launch.yaml server:=192.168.0.4 port:=3883
+ros2 launch vrpn_mocap client.launch.py server:=192.168.0.4 port:=3883
 ```
 Then with `ros2 topic list`, you should be able to see the following topics
 ```bash
 /vrpn_mocap/<tracker_name>/pose
-/vrpn_mocap/<tracker_name>/twist # optional when mocap reports velocity data
-/vrpn_mocap/<tracker_name>/accel # optional when mocap reports acceleration data
 ```
 where `<tracker_name>` is usually the name of your tracked objects.
 
-#### Customized Launch
+### Customized Launch
 Check out the default [parameter file](config/client.yaml) and
-[launch file](launch/client.launch.yaml). You can then write your own launch
+[launch file](launch/client.launch.py). You can then write your own launch
 file with custom configurations.
 
-#### Parameters
-- `server (string)` -- server name, either ip address or domain name (default: `"localhost"`)
+### Parameters
+
+#### `client.launch.py`
+- `server (string)` -- server name, either ip address or domain name (default: `"<optitrack_ip>"`)
 - `port (int)` -- VRPN server port (default: `3883`)
+
+#### `client.yaml`
 - `frame_id (string)` -- frame name of the fixed world frame (default: `"world"`)
 - `update_freq (double)` -- frequency of the motion capture data publisher (default: `100.`)
 - `refresh_freq (double)` -- frequency of dynamic adding new tracked objects (default: `1.`)

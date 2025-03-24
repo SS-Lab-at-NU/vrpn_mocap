@@ -9,13 +9,13 @@ def launch_setup(context, *args, **kwargs):
 
     vrpn_config = LaunchConfiguration('vrpn_config').perform(context)
     server = LaunchConfiguration('server').perform(context)
-    port = LaunchConfiguration('port').perform(context)
+    port = int(LaunchConfiguration('port').perform(context))
 
     debug_config = LogInfo(msg=[
         f'Using vrpn config file: {vrpn_config} with args: {server=} {port=}'
     ])
 
-    # server/port launch arguments take priority over config file
+    # server/port defaults are declared in launch arguments, not config file
     vrpn_node = Node(
         package='vrpn_mocap',
         namespace='vrpn_mocap',
